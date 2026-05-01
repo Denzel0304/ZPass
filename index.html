@@ -1,0 +1,1909 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>ZPassVault</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  :root {
+    --navy: #1a3a5c;
+    --navy-mid: #1e4a7a;
+    --navy-light: #2a5fa0;
+    --navy-pale: #d6e8f7;
+    --navy-surface: #e8f1fa;
+    --accent: #3b82c4;
+    --accent-bright: #5b9fd4;
+    --gold: #c8a84b;
+    --text-primary: #0d1f35;
+    --text-secondary: #4a6080;
+    --text-muted: #7a95b0;
+    --surface: #f0f6fc;
+    --surface-card: #ffffff;
+    --border: rgba(26,58,92,0.15);
+    --border-strong: rgba(26,58,92,0.3);
+    --danger: #c0392b;
+    --danger-light: #fdecea;
+    --success: #1a7a4a;
+    --shadow-sm: 0 2px 8px rgba(26,58,92,0.1);
+    --shadow-md: 0 4px 20px rgba(26,58,92,0.18);
+    --shadow-lg: 0 8px 40px rgba(26,58,92,0.25);
+    --radius: 14px;
+    --radius-sm: 8px;
+    --radius-lg: 20px;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+  body {
+    font-family: -apple-system, 'Pretendard', 'Apple SD Gothic Neo', BlinkMacSystemFont, sans-serif;
+    background: var(--surface);
+    color: var(--text-primary);
+    min-height: 100vh;
+    max-width: 480px;
+    margin: 0 auto;
+    position: relative;
+    overflow-x: hidden;
+  }
+
+  /* ─── AUTH SCREEN ─── */
+  #vault_auth_screen {
+    min-height: 100vh;
+    background: linear-gradient(160deg, var(--navy) 0%, var(--navy-mid) 50%, #0d2a4a 100%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem;
+  }
+
+  .vault_auth_logo {
+    margin-bottom: 2.5rem;
+    text-align: center;
+  }
+
+  .vault_auth_logo svg { filter: drop-shadow(0 4px 12px rgba(200,168,75,0.4)); }
+
+  .vault_auth_title {
+    color: #fff;
+    font-size: 28px;
+    font-weight: 700;
+    letter-spacing: -0.5px;
+    margin-top: 1rem;
+  }
+
+  .vault_auth_sub {
+    color: rgba(255,255,255,0.55);
+    font-size: 13px;
+    margin-top: 4px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+  }
+
+  .vault_auth_card {
+    background: rgba(255,255,255,0.07);
+    border: 1px solid rgba(255,255,255,0.12);
+    border-radius: var(--radius-lg);
+    padding: 2rem;
+    width: 100%;
+    max-width: 360px;
+    backdrop-filter: blur(12px);
+  }
+
+  .vault_field_label {
+    color: rgba(255,255,255,0.7);
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    margin-bottom: 6px;
+    display: block;
+  }
+
+  .vault_input {
+    width: 100%;
+    background: rgba(255,255,255,0.08);
+    border: 1px solid rgba(255,255,255,0.15);
+    border-radius: var(--radius-sm);
+    color: #fff;
+    font-size: 16px;
+    padding: 12px 14px;
+    outline: none;
+    transition: border-color 0.2s, background 0.2s;
+    margin-bottom: 1rem;
+    -webkit-appearance: none;
+  }
+
+  .vault_input:focus {
+    border-color: var(--accent-bright);
+    background: rgba(255,255,255,0.12);
+  }
+
+  .vault_input::placeholder { color: rgba(255,255,255,0.3); }
+
+  .vault_input_wrap {
+    position: relative;
+    margin-bottom: 1rem;
+  }
+
+  .vault_input_wrap .vault_input { margin-bottom: 0; padding-right: 44px; }
+
+  .vault_eye_btn {
+    position: absolute;
+    right: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: none;
+    border: none;
+    color: rgba(255,255,255,0.5);
+    cursor: pointer;
+    padding: 4px;
+    display: flex;
+    align-items: center;
+  }
+
+  .vault_btn_primary {
+    width: 100%;
+    background: var(--gold);
+    border: none;
+    border-radius: var(--radius-sm);
+    color: #1a1200;
+    font-size: 16px;
+    font-weight: 700;
+    padding: 14px;
+    cursor: pointer;
+    margin-top: 0.5rem;
+    transition: opacity 0.2s, transform 0.15s;
+    letter-spacing: 0.3px;
+  }
+
+  .vault_btn_primary:active { opacity: 0.85; transform: scale(0.98); }
+
+  .vault_auth_error {
+    background: rgba(192,57,43,0.2);
+    border: 1px solid rgba(192,57,43,0.4);
+    border-radius: var(--radius-sm);
+    color: #ffb3ab;
+    font-size: 13px;
+    padding: 10px 12px;
+    margin-top: 0.75rem;
+    text-align: center;
+    display: none;
+  }
+
+  /* ─── MAIN APP ─── */
+  #vault_app_screen { display: none; min-height: 100vh; flex-direction: column; }
+
+  /* ─── TOP NAV ─── */
+  .vault_topnav {
+    background: var(--navy);
+    padding: 0 16px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    box-shadow: var(--shadow-sm);
+    height: 56px;
+  }
+
+  .vault_nav_btn {
+    background: none;
+    border: none;
+    color: rgba(255,255,255,0.75);
+    cursor: pointer;
+    padding: 8px;
+    border-radius: var(--radius-sm);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.15s, color 0.15s;
+    flex-shrink: 0;
+  }
+
+  .vault_nav_btn:active, .vault_nav_btn.active { background: rgba(255,255,255,0.1); color: #fff; }
+
+  .vault_nav_btn svg { width: 22px; height: 22px; }
+
+  .vault_search_wrap {
+    flex: 1;
+    position: relative;
+  }
+
+  .vault_search_input {
+    width: 100%;
+    background: rgba(255,255,255,0.1);
+    border: 1px solid rgba(255,255,255,0.15);
+    border-radius: 20px;
+    color: #fff;
+    font-size: 14px;
+    padding: 7px 14px 7px 36px;
+    outline: none;
+    transition: background 0.2s, border-color 0.2s;
+    -webkit-appearance: none;
+  }
+
+  .vault_search_input:focus {
+    background: rgba(255,255,255,0.15);
+    border-color: var(--accent-bright);
+  }
+
+  .vault_search_input::placeholder { color: rgba(255,255,255,0.4); }
+
+  .vault_search_icon {
+    position: absolute;
+    left: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: rgba(255,255,255,0.45);
+    pointer-events: none;
+  }
+
+  .vault_logout_btn {
+    background: none;
+    border: 1px solid rgba(255,255,255,0.2);
+    border-radius: var(--radius-sm);
+    color: rgba(255,255,255,0.7);
+    cursor: pointer;
+    padding: 6px 12px;
+    font-size: 12px;
+    font-weight: 600;
+    transition: all 0.15s;
+    flex-shrink: 0;
+  }
+
+  .vault_logout_btn:active { background: rgba(255,255,255,0.1); color: #fff; }
+
+  /* ─── ADD BUTTON ─── */
+  .vault_add_fab {
+    position: fixed;
+    bottom: 28px;
+    right: 20px;
+    width: 56px;
+    height: 56px;
+    background: var(--gold);
+    border: none;
+    border-radius: 50%;
+    color: #1a1200;
+    font-size: 28px;
+    cursor: pointer;
+    box-shadow: 0 4px 16px rgba(200,168,75,0.45);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 90;
+    transition: transform 0.15s, box-shadow 0.15s;
+  }
+
+  .vault_add_fab:active { transform: scale(0.92); box-shadow: 0 2px 8px rgba(200,168,75,0.3); }
+
+  /* ─── MAIN CONTENT ─── */
+  #vault_main_content { flex: 1; padding: 20px 16px 100px; }
+
+  /* ─── HOME VIEW ─── */
+  #vault_home_view { display: flex; flex-direction: column; align-items: center; padding-top: 40px; }
+
+  .vault_safe_wrap {
+    position: relative;
+    cursor: pointer;
+    display: inline-block;
+    transition: transform 0.2s;
+  }
+
+  .vault_safe_wrap:active { transform: scale(0.96); }
+
+  .vault_count_badge {
+    position: absolute;
+    top: -8px;
+    right: -8px;
+    background: #e74c3c;
+    color: #fff;
+    font-size: 12px;
+    font-weight: 700;
+    min-width: 22px;
+    height: 22px;
+    border-radius: 11px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 5px;
+    border: 2px solid var(--surface);
+    box-shadow: 0 2px 6px rgba(231,76,60,0.4);
+  }
+
+  .vault_home_label {
+    margin-top: 1.5rem;
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--navy);
+    letter-spacing: -0.3px;
+  }
+
+  .vault_home_sub {
+    margin-top: 6px;
+    font-size: 13px;
+    color: var(--text-muted);
+  }
+
+  /* ─── LIST VIEW ─── */
+  #vault_list_view { display: none; }
+
+  .vault_list_header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 16px;
+  }
+
+  .vault_back_btn {
+    background: none;
+    border: none;
+    color: var(--navy);
+    cursor: pointer;
+    padding: 4px;
+    display: flex;
+    align-items: center;
+  }
+
+  .vault_list_title {
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--navy);
+  }
+
+  .vault_list_count {
+    margin-left: auto;
+    font-size: 13px;
+    color: var(--text-muted);
+    background: var(--navy-surface);
+    padding: 3px 10px;
+    border-radius: 12px;
+  }
+
+  .vault_item_card {
+    background: var(--surface-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 14px 16px;
+    margin-bottom: 10px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    transition: box-shadow 0.15s, transform 0.12s;
+    box-shadow: var(--shadow-sm);
+  }
+
+  .vault_item_card:active { box-shadow: var(--shadow-md); transform: scale(0.99); }
+
+  .vault_item_icon {
+    width: 42px;
+    height: 42px;
+    border-radius: 10px;
+    background: var(--navy-surface);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--navy-light);
+  }
+
+  .vault_item_info { flex: 1; min-width: 0; }
+
+  .vault_item_name {
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--text-primary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .vault_item_id {
+    font-size: 12px;
+    color: var(--text-muted);
+    margin-top: 2px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .vault_item_arrow {
+    color: var(--text-muted);
+    flex-shrink: 0;
+  }
+
+  /* ─── SYNC STATUS ─── */
+  .vault_sync_bar {
+    background: var(--navy-surface);
+    border-bottom: 1px solid var(--border);
+    padding: 6px 16px;
+    font-size: 11px;
+    color: var(--text-muted);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .vault_sync_dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--success);
+    flex-shrink: 0;
+  }
+
+  .vault_sync_dot.pending { background: var(--gold); animation: pulse 1.2s infinite; }
+  .vault_sync_dot.offline { background: var(--text-muted); }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.3; }
+  }
+
+  /* ─── MODALS ─── */
+  .vault_modal_overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(10,20,40,0.55);
+    backdrop-filter: blur(4px);
+    z-index: 200;
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.25s;
+  }
+
+  .vault_modal_overlay.open {
+    opacity: 1;
+    pointer-events: all;
+  }
+
+  .vault_modal_sheet {
+    background: var(--surface-card);
+    border-radius: 22px 22px 0 0;
+    width: 100%;
+    max-width: 480px;
+    max-height: 92vh;
+    overflow-y: auto;
+    transform: translateY(100%);
+    transition: transform 0.3s cubic-bezier(0.32,0.72,0,1);
+    padding-bottom: env(safe-area-inset-bottom, 20px);
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .vault_modal_overlay.open .vault_modal_sheet {
+    transform: translateY(0);
+  }
+
+  .vault_modal_handle {
+    width: 40px;
+    height: 4px;
+    background: var(--border-strong);
+    border-radius: 2px;
+    margin: 12px auto 0;
+  }
+
+  .vault_modal_header {
+    padding: 16px 20px 0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .vault_modal_title {
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--navy);
+  }
+
+  .vault_modal_close {
+    background: var(--surface);
+    border: none;
+    border-radius: 50%;
+    width: 30px;
+    height: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    color: var(--text-secondary);
+    font-size: 18px;
+    transition: background 0.15s;
+  }
+
+  .vault_modal_close:active { background: var(--border); }
+
+  .vault_modal_body { padding: 16px 20px 24px; }
+
+  /* ─── FORM FIELDS ─── */
+  .vault_form_group { margin-bottom: 14px; }
+
+  .vault_form_label {
+    display: block;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-secondary);
+    letter-spacing: 0.8px;
+    text-transform: uppercase;
+    margin-bottom: 5px;
+  }
+
+  .vault_form_input {
+    width: 100%;
+    background: var(--surface);
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius-sm);
+    color: var(--text-primary);
+    font-size: 15px;
+    padding: 11px 14px;
+    outline: none;
+    transition: border-color 0.2s;
+    -webkit-appearance: none;
+    font-family: inherit;
+  }
+
+  .vault_form_input:focus { border-color: var(--accent); }
+
+  .vault_form_input_wrap {
+    position: relative;
+  }
+
+  .vault_form_input_wrap .vault_form_input { padding-right: 44px; }
+
+  .vault_form_eye {
+    position: absolute;
+    right: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    padding: 4px;
+    display: flex;
+    align-items: center;
+  }
+
+  .vault_form_copy {
+    position: absolute;
+    right: 44px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    padding: 4px;
+    display: flex;
+    align-items: center;
+    transition: color 0.15s;
+  }
+
+  .vault_form_copy.copied { color: var(--success); }
+
+  .vault_form_textarea {
+    width: 100%;
+    background: var(--surface);
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius-sm);
+    color: var(--text-primary);
+    font-size: 15px;
+    padding: 11px 14px;
+    outline: none;
+    resize: none;
+    min-height: 80px;
+    transition: border-color 0.2s;
+    -webkit-appearance: none;
+    font-family: inherit;
+  }
+
+  .vault_form_textarea:focus { border-color: var(--accent); }
+
+  /* ─── DETAIL MODAL ─── */
+  .vault_detail_field {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 12px 14px;
+    margin-bottom: 10px;
+  }
+
+  .vault_detail_label {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-muted);
+    letter-spacing: 0.8px;
+    text-transform: uppercase;
+    margin-bottom: 3px;
+  }
+
+  .vault_detail_value {
+    font-size: 15px;
+    color: var(--text-primary);
+    word-break: break-all;
+  }
+
+  .vault_detail_value_wrap {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .vault_detail_value_wrap .vault_detail_value { flex: 1; }
+
+  .vault_icon_btn {
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    padding: 4px;
+    display: flex;
+    align-items: center;
+    border-radius: 6px;
+    transition: background 0.15s, color 0.15s;
+    flex-shrink: 0;
+  }
+
+  .vault_icon_btn:active { background: var(--border); color: var(--navy); }
+  .vault_icon_btn.copied { color: var(--success); }
+
+  .vault_detail_actions {
+    display: flex;
+    gap: 10px;
+    margin-top: 20px;
+  }
+
+  .vault_btn_edit {
+    flex: 1;
+    background: var(--navy-surface);
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius-sm);
+    color: var(--navy);
+    font-size: 14px;
+    font-weight: 600;
+    padding: 12px;
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+
+  .vault_btn_edit:active { background: var(--navy-pale); }
+
+  .vault_btn_delete {
+    flex: 1;
+    background: var(--danger-light);
+    border: 1px solid rgba(192,57,43,0.2);
+    border-radius: var(--radius-sm);
+    color: var(--danger);
+    font-size: 14px;
+    font-weight: 600;
+    padding: 12px;
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+
+  .vault_btn_delete:active { background: rgba(192,57,43,0.15); }
+
+  /* ─── GEN PASSWORD ─── */
+  .vault_gen_btn {
+    background: var(--navy-surface);
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius-sm);
+    color: var(--navy);
+    font-size: 12px;
+    font-weight: 600;
+    padding: 7px 12px;
+    cursor: pointer;
+    margin-top: 6px;
+    transition: background 0.15s;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+  }
+
+  .vault_gen_btn:active { background: var(--navy-pale); }
+
+  /* ─── ACTION BUTTONS ─── */
+  .vault_btn_save {
+    width: 100%;
+    background: var(--navy);
+    border: none;
+    border-radius: var(--radius-sm);
+    color: #fff;
+    font-size: 15px;
+    font-weight: 700;
+    padding: 14px;
+    cursor: pointer;
+    margin-top: 8px;
+    transition: opacity 0.2s, transform 0.15s;
+  }
+
+  .vault_btn_save:active { opacity: 0.85; transform: scale(0.98); }
+  .vault_btn_save:disabled { opacity: 0.5; }
+
+  /* ─── CONFIRM MODAL ─── */
+  .vault_confirm_overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(10,20,40,0.65);
+    z-index: 300;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s;
+  }
+
+  .vault_confirm_overlay.open { opacity: 1; pointer-events: all; }
+
+  .vault_confirm_box {
+    background: var(--surface-card);
+    border-radius: var(--radius);
+    padding: 24px 20px;
+    width: 100%;
+    max-width: 320px;
+    text-align: center;
+    transform: scale(0.92);
+    transition: transform 0.2s;
+    box-shadow: var(--shadow-lg);
+  }
+
+  .vault_confirm_overlay.open .vault_confirm_box { transform: scale(1); }
+
+  .vault_confirm_title {
+    font-size: 17px;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin-bottom: 8px;
+  }
+
+  .vault_confirm_msg {
+    font-size: 14px;
+    color: var(--text-secondary);
+    line-height: 1.5;
+    margin-bottom: 20px;
+  }
+
+  .vault_confirm_btns { display: flex; gap: 10px; }
+
+  .vault_confirm_cancel {
+    flex: 1;
+    background: var(--surface);
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius-sm);
+    color: var(--text-secondary);
+    font-size: 14px;
+    font-weight: 600;
+    padding: 12px;
+    cursor: pointer;
+  }
+
+  .vault_confirm_ok {
+    flex: 1;
+    background: var(--danger);
+    border: none;
+    border-radius: var(--radius-sm);
+    color: #fff;
+    font-size: 14px;
+    font-weight: 700;
+    padding: 12px;
+    cursor: pointer;
+  }
+
+  /* ─── TOAST ─── */
+  .vault_toast {
+    position: fixed;
+    bottom: 90px;
+    left: 50%;
+    transform: translateX(-50%) translateY(20px);
+    background: var(--navy);
+    color: #fff;
+    font-size: 13px;
+    font-weight: 600;
+    padding: 10px 20px;
+    border-radius: 20px;
+    z-index: 400;
+    opacity: 0;
+    transition: opacity 0.2s, transform 0.2s;
+    white-space: nowrap;
+    pointer-events: none;
+    box-shadow: var(--shadow-md);
+  }
+
+  .vault_toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  /* ─── EMPTY STATE ─── */
+  .vault_empty {
+    text-align: center;
+    padding: 60px 20px;
+    color: var(--text-muted);
+  }
+
+  .vault_empty svg { opacity: 0.3; margin-bottom: 12px; }
+  .vault_empty p { font-size: 14px; }
+
+  /* ─── LOADING ─── */
+  .vault_loading {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 60px;
+    color: var(--text-muted);
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .vault_spinner {
+    width: 28px;
+    height: 28px;
+    border: 3px solid var(--border);
+    border-top-color: var(--navy);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+  }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .vault_site_url {
+    color: var(--accent);
+    font-size: 12px;
+    text-decoration: none;
+  }
+
+  .vault_pw_dots { letter-spacing: 3px; font-size: 18px; }
+
+  .vault_no_results {
+    text-align: center;
+    padding: 40px 20px;
+    color: var(--text-muted);
+    font-size: 14px;
+  }
+</style>
+</head>
+<body>
+
+<!-- ═══ AUTH SCREEN ═══ -->
+<div id="vault_auth_screen">
+  <div class="vault_auth_logo">
+    <svg width="90" height="90" viewBox="0 0 90 90" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <rect x="8" y="20" width="74" height="58" rx="10" fill="rgba(255,255,255,0.08)" stroke="rgba(200,168,75,0.5)" stroke-width="1.5"/>
+      <rect x="16" y="28" width="58" height="42" rx="7" fill="rgba(255,255,255,0.05)" stroke="rgba(200,168,75,0.3)" stroke-width="1"/>
+      <path d="M30 10 L30 28 M60 10 L60 28" stroke="rgba(200,168,75,0.6)" stroke-width="3" stroke-linecap="round"/>
+      <circle cx="45" cy="46" r="10" fill="none" stroke="#c8a84b" stroke-width="2"/>
+      <circle cx="45" cy="46" r="4" fill="#c8a84b"/>
+      <rect x="43" y="52" width="4" height="8" rx="2" fill="#c8a84b"/>
+      <circle cx="22" cy="49" r="3" fill="rgba(200,168,75,0.4)"/>
+      <circle cx="68" cy="49" r="3" fill="rgba(200,168,75,0.4)"/>
+      <path d="M14 60 L76 60" stroke="rgba(200,168,75,0.15)" stroke-width="1"/>
+    </svg>
+    <div class="vault_auth_title">ZPassVault</div>
+    <div class="vault_auth_sub">Secure Password Manager</div>
+  </div>
+
+  <div class="vault_auth_card">
+    <label class="vault_field_label">이메일</label>
+    <input class="vault_input" type="email" id="vault_email_input" placeholder="your@email.com" autocomplete="email" inputmode="email">
+
+    <label class="vault_field_label">비밀번호</label>
+    <div class="vault_input_wrap">
+      <input class="vault_input" type="password" id="vault_pw_input" placeholder="••••••••" autocomplete="current-password">
+      <button class="vault_eye_btn" id="vault_auth_eye" type="button">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+      </button>
+    </div>
+
+    <button class="vault_btn_primary" id="vault_login_btn">금고 열기</button>
+    <div class="vault_auth_error" id="vault_auth_error"></div>
+  </div>
+</div>
+
+<!-- ═══ MAIN APP ═══ -->
+<div id="vault_app_screen">
+
+  <!-- TOP NAV -->
+  <nav class="vault_topnav">
+    <button class="vault_nav_btn" id="vault_nav_safe_btn" title="금고">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="12" cy="12" r="4"/><path d="M12 8v1M12 15v1M8 12h1M15 12h1"/>
+      </svg>
+    </button>
+
+    <div class="vault_search_wrap">
+      <svg class="vault_search_icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+      <input class="vault_search_input" type="search" id="vault_search_input" placeholder="검색..." autocomplete="off">
+    </div>
+
+    <button class="vault_logout_btn" id="vault_logout_btn">로그아웃</button>
+  </nav>
+
+  <!-- SYNC BAR -->
+  <div class="vault_sync_bar" id="vault_sync_bar">
+    <div class="vault_sync_dot" id="vault_sync_dot"></div>
+    <span id="vault_sync_text">동기화됨</span>
+  </div>
+
+  <!-- MAIN CONTENT -->
+  <div id="vault_main_content">
+
+    <!-- HOME VIEW -->
+    <div id="vault_home_view">
+      <div class="vault_safe_wrap" id="vault_safe_icon_btn">
+        <svg width="160" height="160" viewBox="0 0 160 160" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <rect x="12" y="28" width="136" height="110" rx="16" fill="#1e4a7a" stroke="#2a5fa0" stroke-width="2"/>
+          <rect x="22" y="38" width="116" height="90" rx="10" fill="#1a3a5c" stroke="#3b82c4" stroke-width="1.5" stroke-opacity="0.5"/>
+          <path d="M44 28 L44 20 Q44 12 52 12 L108 12 Q116 12 116 20 L116 28" stroke="#2a5fa0" stroke-width="3" stroke-linecap="round" fill="none"/>
+          <circle cx="80" cy="80" r="26" fill="#0d2a4a" stroke="#c8a84b" stroke-width="2"/>
+          <circle cx="80" cy="80" r="16" fill="none" stroke="#3b82c4" stroke-width="1.5" stroke-opacity="0.4"/>
+          <circle cx="80" cy="80" r="8" fill="#c8a84b"/>
+          <rect x="77" y="86" width="6" height="14" rx="3" fill="#c8a84b"/>
+          <circle cx="30" cy="83" r="6" fill="#0d2a4a" stroke="#3b82c4" stroke-width="1.5"/>
+          <circle cx="130" cy="83" r="6" fill="#0d2a4a" stroke="#3b82c4" stroke-width="1.5"/>
+          <path d="M22 110 L138 110" stroke="#3b82c4" stroke-width="0.5" stroke-opacity="0.3"/>
+          <rect x="68" y="116" width="24" height="6" rx="3" fill="#2a5fa0" opacity="0.5"/>
+        </svg>
+        <div class="vault_count_badge" id="vault_count_badge">0</div>
+      </div>
+      <div class="vault_home_label">내 금고</div>
+      <div class="vault_home_sub" id="vault_home_sub">탭하여 비밀번호 목록 열기</div>
+    </div>
+
+    <!-- LIST VIEW -->
+    <div id="vault_list_view">
+      <div class="vault_list_header">
+        <button class="vault_back_btn" id="vault_list_back_btn">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+        </button>
+        <span class="vault_list_title">금고</span>
+        <span class="vault_list_count" id="vault_list_count">0개</span>
+      </div>
+      <div id="vault_items_container"></div>
+    </div>
+
+  </div>
+
+  <!-- FAB -->
+  <button class="vault_add_fab" id="vault_add_fab">
+    <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+  </button>
+</div>
+
+<!-- ═══ DETAIL MODAL ═══ -->
+<div class="vault_modal_overlay" id="vault_detail_modal">
+  <div class="vault_modal_sheet">
+    <div class="vault_modal_handle"></div>
+    <div class="vault_modal_header">
+      <span class="vault_modal_title" id="vault_detail_title">상세 정보</span>
+      <button class="vault_modal_close" id="vault_detail_close">×</button>
+    </div>
+    <div class="vault_modal_body">
+      <div class="vault_detail_field">
+        <div class="vault_detail_label">사이트 이름</div>
+        <div class="vault_detail_value" id="vault_d_site_name"></div>
+      </div>
+      <div class="vault_detail_field" id="vault_d_url_field">
+        <div class="vault_detail_label">사이트 주소</div>
+        <div class="vault_detail_value_wrap">
+          <a class="vault_detail_value vault_site_url" id="vault_d_url" href="#" target="_blank"></a>
+          <button class="vault_icon_btn" id="vault_d_url_copy" title="복사">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+          </button>
+        </div>
+      </div>
+      <div class="vault_detail_field">
+        <div class="vault_detail_label">아이디</div>
+        <div class="vault_detail_value_wrap">
+          <div class="vault_detail_value" id="vault_d_login_id"></div>
+          <button class="vault_icon_btn" id="vault_d_id_copy" title="복사">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+          </button>
+        </div>
+      </div>
+      <div class="vault_detail_field">
+        <div class="vault_detail_label">비밀번호</div>
+        <div class="vault_detail_value_wrap">
+          <div class="vault_detail_value vault_pw_dots" id="vault_d_password">••••••••</div>
+          <button class="vault_icon_btn" id="vault_d_pw_eye" title="보기">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+          </button>
+          <button class="vault_icon_btn" id="vault_d_pw_copy" title="복사">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+          </button>
+        </div>
+      </div>
+      <div class="vault_detail_field" id="vault_d_memo_field">
+        <div class="vault_detail_label">메모</div>
+        <div class="vault_detail_value" id="vault_d_memo" style="white-space:pre-wrap;line-height:1.5;"></div>
+      </div>
+      <div class="vault_detail_actions">
+        <button class="vault_btn_edit" id="vault_detail_edit_btn">수정</button>
+        <button class="vault_btn_delete" id="vault_detail_delete_btn">삭제</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ ADD/EDIT MODAL ═══ -->
+<div class="vault_modal_overlay" id="vault_form_modal">
+  <div class="vault_modal_sheet">
+    <div class="vault_modal_handle"></div>
+    <div class="vault_modal_header">
+      <span class="vault_modal_title" id="vault_form_title">새 항목 추가</span>
+      <button class="vault_modal_close" id="vault_form_close">×</button>
+    </div>
+    <div class="vault_modal_body">
+      <div class="vault_form_group">
+        <label class="vault_form_label">사이트 이름 *</label>
+        <input class="vault_form_input" type="text" id="vault_f_site_name" placeholder="예: 구글, 네이버">
+      </div>
+      <div class="vault_form_group">
+        <label class="vault_form_label">사이트 주소</label>
+        <input class="vault_form_input" type="url" id="vault_f_url" placeholder="https://">
+      </div>
+      <div class="vault_form_group">
+        <label class="vault_form_label">아이디 *</label>
+        <div class="vault_form_input_wrap" style="position:relative;">
+          <input class="vault_form_input" type="text" id="vault_f_login_id" placeholder="아이디 또는 이메일" style="padding-right:44px;">
+          <button class="vault_form_copy" id="vault_f_id_copy" title="복사" style="right:10px;">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+          </button>
+        </div>
+      </div>
+      <div class="vault_form_group">
+        <label class="vault_form_label">비밀번호 *</label>
+        <div class="vault_form_input_wrap">
+          <input class="vault_form_input" type="password" id="vault_f_password" placeholder="비밀번호" style="padding-right:80px;">
+          <button class="vault_form_copy" id="vault_f_pw_copy" title="복사">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+          </button>
+          <button class="vault_form_eye" id="vault_f_pw_eye">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+          </button>
+        </div>
+        <button class="vault_gen_btn" id="vault_gen_pw_btn">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>
+          자동 생성 (16자리)
+        </button>
+        <div id="vault_gen_options" style="margin-top:8px;display:none;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px;">
+          <label style="font-size:12px;color:var(--text-secondary);display:flex;align-items:center;gap:6px;margin-bottom:6px;cursor:pointer;">
+            <input type="checkbox" id="vault_opt_upper" checked> 대문자 포함
+          </label>
+          <label style="font-size:12px;color:var(--text-secondary);display:flex;align-items:center;gap:6px;margin-bottom:6px;cursor:pointer;">
+            <input type="checkbox" id="vault_opt_num" checked> 숫자 포함
+          </label>
+          <label style="font-size:12px;color:var(--text-secondary);display:flex;align-items:center;gap:6px;margin-bottom:6px;cursor:pointer;">
+            <input type="checkbox" id="vault_opt_sym" checked> 특수문자 포함 (!@#$%^&*)
+          </label>
+          <button class="vault_btn_save" id="vault_do_gen_btn" style="margin-top:4px;padding:10px;font-size:13px;">생성하기</button>
+        </div>
+      </div>
+      <div class="vault_form_group">
+        <label class="vault_form_label">메모</label>
+        <textarea class="vault_form_textarea" id="vault_f_memo" placeholder="추가 메모 (선택)"></textarea>
+      </div>
+      <button class="vault_btn_save" id="vault_form_save_btn">저장</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ CONFIRM MODAL ═══ -->
+<div class="vault_confirm_overlay" id="vault_confirm_overlay">
+  <div class="vault_confirm_box">
+    <div class="vault_confirm_title" id="vault_confirm_title">삭제 확인</div>
+    <div class="vault_confirm_msg" id="vault_confirm_msg">이 항목을 삭제할까요?</div>
+    <div class="vault_confirm_btns">
+      <button class="vault_confirm_cancel" id="vault_confirm_cancel">취소</button>
+      <button class="vault_confirm_ok" id="vault_confirm_ok">삭제</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ TOAST ═══ -->
+<div class="vault_toast" id="vault_toast"></div>
+
+<script>
+/* ═══════════════════════════════════════════════
+   ZPASSVAULT — Secure Password Manager
+   Unique namespace: zPV_ prefix for all storage keys
+   ═══════════════════════════════════════════════ */
+
+// ── SUPABASE CONFIG ──────────────────────────────
+// ▼▼▼ 아래 두 값을 Supabase 프로젝트에서 복사해 넣으세요 ▼▼▼
+const zPV_SUPABASE_URL  = 'YOUR_SUPABASE_URL';
+const zPV_SUPABASE_ANON = 'YOUR_SUPABASE_ANON_KEY';
+// ▲▲▲ ─────────────────────────────────────────── ▲▲▲
+
+const zPV_TABLE         = 'zPassWord';
+const zPV_LOCAL_KEY     = 'zPV_vault_cache_v1';
+const zPV_QUEUE_KEY     = 'zPV_sync_queue_v1';
+const zPV_SESSION_KEY   = 'zPV_auth_session_v1';
+const zPV_SALT_KEY      = 'zPV_crypto_salt_v1';
+
+const { createClient } = supabase;
+const zPV_sb = createClient(zPV_SUPABASE_URL, zPV_ANON_KEY = zPV_SUPABASE_ANON, {
+  auth: {
+    storageKey: zPV_SESSION_KEY,
+    autoRefreshToken: true,
+    persistSession: true,
+    detectSessionInUrl: false
+  }
+});
+
+// ── CRYPTO LAYER ─────────────────────────────────
+const zPV_crypto = {
+  _enc: new TextEncoder(),
+  _dec: new TextDecoder(),
+
+  async _deriveKey(password, salt) {
+    const keyMaterial = await crypto.subtle.importKey(
+      'raw', this._enc.encode(password), 'PBKDF2', false, ['deriveKey']
+    );
+    return crypto.subtle.deriveKey(
+      { name: 'PBKDF2', salt, iterations: 310000, hash: 'SHA-256' },
+      keyMaterial,
+      { name: 'AES-GCM', length: 256 },
+      false,
+      ['encrypt', 'decrypt']
+    );
+  },
+
+  _getSalt() {
+    let s = localStorage.getItem(zPV_SALT_KEY);
+    if (!s) {
+      const arr = crypto.getRandomValues(new Uint8Array(32));
+      s = btoa(String.fromCharCode(...arr));
+      localStorage.setItem(zPV_SALT_KEY, s);
+    }
+    return Uint8Array.from(atob(s), c => c.charCodeAt(0));
+  },
+
+  async encrypt(text, password) {
+    const salt = this._getSalt();
+    const key  = await this._deriveKey(password, salt);
+    const iv   = crypto.getRandomValues(new Uint8Array(12));
+    const ct   = await crypto.subtle.encrypt(
+      { name: 'AES-GCM', iv },
+      key,
+      this._enc.encode(text)
+    );
+    const buf  = new Uint8Array(iv.byteLength + ct.byteLength);
+    buf.set(iv, 0);
+    buf.set(new Uint8Array(ct), iv.byteLength);
+    return btoa(String.fromCharCode(...buf));
+  },
+
+  async decrypt(b64, password) {
+    const salt = this._getSalt();
+    const key  = await this._deriveKey(password, salt);
+    const buf  = Uint8Array.from(atob(b64), c => c.charCodeAt(0));
+    const iv   = buf.slice(0, 12);
+    const ct   = buf.slice(12);
+    const pt   = await crypto.subtle.decrypt({ name: 'AES-GCM', iv }, key, ct);
+    return this._dec.decode(pt);
+  }
+};
+
+// ── APP STATE ────────────────────────────────────
+let zPV_state = {
+  user: null,
+  masterPw: '',
+  items: [],
+  filteredItems: [],
+  currentView: 'home',   // 'home' | 'list'
+  editingId: null,
+  detailItem: null,
+  pwVisible: false,
+  isOnline: navigator.onLine,
+  syncing: false,
+  // History stack for back navigation
+  modalStack: []         // ['detail', 'form', 'confirm']
+};
+
+// ── HISTORY / BACK BUTTON ────────────────────────
+function zPV_pushHistory(state) {
+  history.pushState({ zPV: state }, '');
+}
+
+function zPV_setupBackHandler() {
+  window.addEventListener('popstate', (e) => {
+    if (!e.state || !e.state.zPV) return;
+    const s = e.state.zPV;
+
+    // Close top modal first
+    const top = zPV_state.modalStack[zPV_state.modalStack.length - 1];
+    if (top === 'confirm') {
+      zPV_closeConfirm();
+      history.pushState({ zPV: 'confirm_closed' }, '');
+      return;
+    }
+    if (top === 'form') {
+      zPV_closeFormModal();
+      return;
+    }
+    if (top === 'detail') {
+      zPV_closeDetailModal();
+      return;
+    }
+    // No modal open — handle view navigation
+    if (zPV_state.currentView === 'list') {
+      zPV_showHome();
+      history.pushState({ zPV: 'home' }, '');
+      return;
+    }
+    // On home — let browser handle (exit)
+  });
+}
+
+// ── TOAST ────────────────────────────────────────
+function zPV_toast(msg, dur = 2000) {
+  const t = document.getElementById('vault_toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), dur);
+}
+
+// ── SYNC STATUS ──────────────────────────────────
+function zPV_setSyncStatus(status) {
+  const dot  = document.getElementById('vault_sync_dot');
+  const text = document.getElementById('vault_sync_text');
+  dot.className = 'vault_sync_dot';
+  if (status === 'synced')   { text.textContent = '동기화됨'; }
+  if (status === 'pending')  { dot.classList.add('pending'); text.textContent = '동기화 대기 중...'; }
+  if (status === 'syncing')  { dot.classList.add('pending'); text.textContent = '동기화 중...'; }
+  if (status === 'offline')  { dot.classList.add('offline'); text.textContent = '오프라인 모드'; }
+}
+
+// ── OFFLINE QUEUE ────────────────────────────────
+function zPV_queueOp(op) {
+  const q = JSON.parse(localStorage.getItem(zPV_QUEUE_KEY) || '[]');
+  q.push({ ...op, ts: Date.now() });
+  localStorage.setItem(zPV_QUEUE_KEY, JSON.stringify(q));
+  zPV_setSyncStatus('pending');
+}
+
+async function zPV_flushQueue() {
+  const q = JSON.parse(localStorage.getItem(zPV_QUEUE_KEY) || '[]');
+  if (!q.length || !zPV_state.isOnline) return;
+  zPV_setSyncStatus('syncing');
+  const remaining = [];
+  for (const op of q) {
+    try {
+      if (op.type === 'upsert') {
+        await zPV_sb.from(zPV_TABLE).upsert(op.data, { onConflict: 'id' });
+      } else if (op.type === 'delete') {
+        await zPV_sb.from(zPV_TABLE).delete().eq('id', op.id);
+      }
+    } catch { remaining.push(op); }
+  }
+  localStorage.setItem(zPV_QUEUE_KEY, JSON.stringify(remaining));
+  zPV_setSyncStatus(remaining.length ? 'pending' : 'synced');
+}
+
+// ── LOCAL CACHE ──────────────────────────────────
+function zPV_saveLocal(items) {
+  localStorage.setItem(zPV_LOCAL_KEY, JSON.stringify(items));
+}
+
+function zPV_loadLocal() {
+  try { return JSON.parse(localStorage.getItem(zPV_LOCAL_KEY) || '[]'); }
+  catch { return []; }
+}
+
+// ── ENCRYPTION HELPERS ───────────────────────────
+async function zPV_encryptItem(item) {
+  const fields = ['site_name', 'site_url', 'login_id', 'password', 'memo'];
+  const enc = { id: item.id, user_id: item.user_id, created_at: item.created_at };
+  for (const f of fields) {
+    enc[f] = item[f] ? await zPV_crypto.encrypt(item[f], zPV_state.masterPw) : '';
+  }
+  return enc;
+}
+
+async function zPV_decryptItem(enc) {
+  const fields = ['site_name', 'site_url', 'login_id', 'password', 'memo'];
+  const item = { id: enc.id, user_id: enc.user_id, created_at: enc.created_at };
+  for (const f of fields) {
+    try { item[f] = enc[f] ? await zPV_crypto.decrypt(enc[f], zPV_state.masterPw) : ''; }
+    catch { item[f] = ''; }
+  }
+  return item;
+}
+
+// ── PASSWORD GENERATOR ───────────────────────────
+function zPV_genPassword(useUpper = true, useNum = true, useSym = true) {
+  const lower = 'abcdefghijklmnopqrstuvwxyz';
+  const upper = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+  const nums  = '0123456789';
+  const syms  = '!@#$%^&*';
+  let pool = lower;
+  let required = [lower[Math.floor(Math.random() * lower.length)]];
+  if (useUpper) { pool += upper; required.push(upper[Math.floor(Math.random() * upper.length)]); }
+  if (useNum)   { pool += nums;  required.push(nums[Math.floor(Math.random() * nums.length)]); }
+  if (useSym)   { pool += syms;  required.push(syms[Math.floor(Math.random() * syms.length)]); }
+  const len = 16;
+  const arr = new Uint32Array(len);
+  crypto.getRandomValues(arr);
+  let pw = required.join('');
+  for (let i = pw.length; i < len; i++) {
+    pw += pool[arr[i] % pool.length];
+  }
+  // Shuffle
+  const chars = pw.split('');
+  for (let i = chars.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [chars[i], chars[j]] = [chars[j], chars[i]];
+  }
+  return chars.join('');
+}
+
+// ── SORT (EN asc → KO asc) ───────────────────────
+function zPV_sortItems(items) {
+  return [...items].sort((a, b) => {
+    const na = (a.site_name || '').trim();
+    const nb = (b.site_name || '').trim();
+    const aKo = /^[가-힣]/.test(na);
+    const bKo = /^[가-힣]/.test(nb);
+    if (aKo !== bKo) return aKo ? 1 : -1;
+    return na.localeCompare(nb, aKo ? 'ko' : 'en', { sensitivity: 'base' });
+  });
+}
+
+// ── LOAD & DECRYPT ITEMS ─────────────────────────
+async function zPV_loadItems(fromServer = true) {
+  if (fromServer && zPV_state.isOnline) {
+    try {
+      const { data, error } = await zPV_sb
+        .from(zPV_TABLE)
+        .select('*')
+        .eq('user_id', zPV_state.user.id);
+      if (!error && data) {
+        zPV_saveLocal(data);
+        const decrypted = await Promise.all(data.map(zPV_decryptItem));
+        zPV_state.items = zPV_sortItems(decrypted);
+        zPV_state.filteredItems = zPV_state.items;
+        zPV_updateUI();
+        return;
+      }
+    } catch {}
+  }
+  // Fall back to local
+  const cached = zPV_loadLocal();
+  const decrypted = await Promise.all(cached.map(zPV_decryptItem));
+  zPV_state.items = zPV_sortItems(decrypted);
+  zPV_state.filteredItems = zPV_state.items;
+  zPV_updateUI();
+}
+
+// ── UPDATE UI ────────────────────────────────────
+function zPV_updateUI() {
+  const count = zPV_state.items.length;
+  document.getElementById('vault_count_badge').textContent = count;
+  document.getElementById('vault_home_sub').textContent =
+    count ? `${count}개의 비밀번호가 저장됨` : '탭하여 비밀번호 추가';
+  document.getElementById('vault_list_count').textContent = `${zPV_state.filteredItems.length}개`;
+  zPV_renderList();
+}
+
+// ── RENDER LIST ──────────────────────────────────
+function zPV_renderList() {
+  const container = document.getElementById('vault_items_container');
+  const items = zPV_state.filteredItems;
+
+  if (!items.length) {
+    const q = document.getElementById('vault_search_input').value.trim();
+    container.innerHTML = q
+      ? `<div class="vault_no_results">검색 결과가 없습니다</div>`
+      : `<div class="vault_empty"><svg width="60" height="60" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="12" cy="12" r="4"/></svg><p>+ 버튼으로 첫 항목을 추가하세요</p></div>`;
+    return;
+  }
+
+  container.innerHTML = items.map(item => {
+    const initial = (item.site_name || '?')[0].toUpperCase();
+    return `
+    <div class="vault_item_card" data-id="${item.id}">
+      <div class="vault_item_icon">${initial}</div>
+      <div class="vault_item_info">
+        <div class="vault_item_name">${zPV_esc(item.site_name)}</div>
+        <div class="vault_item_id">${zPV_esc(item.login_id)}</div>
+      </div>
+      <svg class="vault_item_arrow" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="m9 18 6-6-6-6"/></svg>
+    </div>`;
+  }).join('');
+
+  container.querySelectorAll('.vault_item_card').forEach(card => {
+    card.addEventListener('click', () => {
+      const item = zPV_state.items.find(i => i.id === card.dataset.id);
+      if (item) zPV_openDetailModal(item);
+    });
+  });
+}
+
+function zPV_esc(s) {
+  return (s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ── VIEWS ────────────────────────────────────────
+function zPV_showHome() {
+  zPV_state.currentView = 'home';
+  document.getElementById('vault_home_view').style.display = 'flex';
+  document.getElementById('vault_list_view').style.display = 'none';
+}
+
+function zPV_showList() {
+  zPV_state.currentView = 'list';
+  document.getElementById('vault_home_view').style.display = 'none';
+  document.getElementById('vault_list_view').style.display = 'block';
+  zPV_renderList();
+  zPV_pushHistory('list');
+}
+
+// ── DETAIL MODAL ─────────────────────────────────
+function zPV_openDetailModal(item) {
+  zPV_state.detailItem = item;
+  zPV_state.pwVisible  = false;
+
+  document.getElementById('vault_detail_title').textContent   = item.site_name || '상세 정보';
+  document.getElementById('vault_d_site_name').textContent    = item.site_name || '-';
+  document.getElementById('vault_d_login_id').textContent     = item.login_id || '-';
+  document.getElementById('vault_d_password').textContent     = '••••••••';
+  document.getElementById('vault_d_password').classList.add('vault_pw_dots');
+  document.getElementById('vault_d_memo').textContent         = item.memo || '';
+
+  const urlEl  = document.getElementById('vault_d_url');
+  const urlFld = document.getElementById('vault_d_url_field');
+  if (item.site_url) {
+    urlEl.textContent = item.site_url;
+    urlEl.href = item.site_url.startsWith('http') ? item.site_url : 'https://' + item.site_url;
+    urlFld.style.display = 'block';
+  } else { urlFld.style.display = 'none'; }
+
+  const memoFld = document.getElementById('vault_d_memo_field');
+  memoFld.style.display = item.memo ? 'block' : 'none';
+
+  zPV_openModal('vault_detail_modal');
+  zPV_state.modalStack.push('detail');
+  zPV_pushHistory('detail');
+}
+
+function zPV_closeDetailModal() {
+  zPV_closeModal('vault_detail_modal');
+  zPV_state.modalStack = zPV_state.modalStack.filter(m => m !== 'detail');
+}
+
+// ── FORM MODAL ───────────────────────────────────
+function zPV_openFormModal(item = null) {
+  zPV_state.editingId = item ? item.id : null;
+  document.getElementById('vault_form_title').textContent = item ? '항목 수정' : '새 항목 추가';
+  document.getElementById('vault_f_site_name').value = item ? (item.site_name || '') : '';
+  document.getElementById('vault_f_url').value        = item ? (item.site_url  || '') : '';
+  document.getElementById('vault_f_login_id').value   = item ? (item.login_id  || '') : '';
+  document.getElementById('vault_f_password').value   = item ? (item.password  || '') : '';
+  document.getElementById('vault_f_password').type    = 'password';
+  document.getElementById('vault_f_memo').value       = item ? (item.memo      || '') : '';
+  document.getElementById('vault_gen_options').style.display = 'none';
+
+  zPV_openModal('vault_form_modal');
+  zPV_state.modalStack.push('form');
+  zPV_pushHistory('form');
+
+  setTimeout(() => document.getElementById('vault_f_site_name').focus(), 350);
+}
+
+function zPV_closeFormModal() {
+  zPV_closeModal('vault_form_modal');
+  zPV_state.modalStack = zPV_state.modalStack.filter(m => m !== 'form');
+}
+
+// ── CONFIRM MODAL ────────────────────────────────
+let zPV_confirmResolve = null;
+
+function zPV_openConfirm(title, msg) {
+  return new Promise(resolve => {
+    zPV_confirmResolve = resolve;
+    document.getElementById('vault_confirm_title').textContent = title;
+    document.getElementById('vault_confirm_msg').textContent   = msg;
+    document.getElementById('vault_confirm_overlay').classList.add('open');
+    zPV_state.modalStack.push('confirm');
+    zPV_pushHistory('confirm');
+  });
+}
+
+function zPV_closeConfirm(result = false) {
+  document.getElementById('vault_confirm_overlay').classList.remove('open');
+  zPV_state.modalStack = zPV_state.modalStack.filter(m => m !== 'confirm');
+  if (zPV_confirmResolve) { zPV_confirmResolve(result); zPV_confirmResolve = null; }
+}
+
+// ── MODAL HELPERS ────────────────────────────────
+function zPV_openModal(id) {
+  document.getElementById(id).classList.add('open');
+}
+
+function zPV_closeModal(id) {
+  document.getElementById(id).classList.remove('open');
+}
+
+// ── SAVE ITEM ────────────────────────────────────
+async function zPV_saveItem() {
+  const siteName = document.getElementById('vault_f_site_name').value.trim();
+  const loginId  = document.getElementById('vault_f_login_id').value.trim();
+  const password = document.getElementById('vault_f_password').value;
+
+  if (!siteName || !loginId || !password) {
+    zPV_toast('필수 항목을 모두 입력해주세요');
+    return;
+  }
+
+  const btn = document.getElementById('vault_form_save_btn');
+  btn.disabled = true;
+  btn.textContent = '저장 중...';
+
+  const raw = {
+    id:         zPV_state.editingId || crypto.randomUUID(),
+    user_id:    zPV_state.user.id,
+    site_name:  siteName,
+    site_url:   document.getElementById('vault_f_url').value.trim(),
+    login_id:   loginId,
+    password:   password,
+    memo:       document.getElementById('vault_f_memo').value.trim(),
+    created_at: zPV_state.editingId
+      ? (zPV_state.items.find(i => i.id === zPV_state.editingId)?.created_at || new Date().toISOString())
+      : new Date().toISOString()
+  };
+
+  // Update local state
+  if (zPV_state.editingId) {
+    const idx = zPV_state.items.findIndex(i => i.id === zPV_state.editingId);
+    if (idx !== -1) zPV_state.items[idx] = raw;
+  } else {
+    zPV_state.items.push(raw);
+  }
+  zPV_state.items = zPV_sortItems(zPV_state.items);
+  zPV_state.filteredItems = zPV_state.items;
+
+  // Encrypt for storage
+  const encrypted = await zPV_encryptItem(raw);
+
+  // Save locally (encrypted)
+  const localData = zPV_loadLocal();
+  const li = localData.findIndex(i => i.id === raw.id);
+  if (li !== -1) localData[li] = encrypted;
+  else localData.push(encrypted);
+  zPV_saveLocal(localData);
+
+  // Sync to server (or queue)
+  if (zPV_state.isOnline) {
+    try {
+      const { error } = await zPV_sb.from(zPV_TABLE).upsert(encrypted, { onConflict: 'id' });
+      if (error) throw error;
+      zPV_setSyncStatus('synced');
+    } catch {
+      zPV_queueOp({ type: 'upsert', data: encrypted });
+    }
+  } else {
+    zPV_queueOp({ type: 'upsert', data: encrypted });
+  }
+
+  zPV_updateUI();
+  zPV_closeFormModal();
+  // If detail modal is open, refresh it
+  if (zPV_state.modalStack.includes('detail') && zPV_state.editingId) {
+    zPV_state.detailItem = raw;
+    zPV_openDetailModal(raw);
+    // Remove duplicate from stack (we re-added)
+    const last = zPV_state.modalStack.lastIndexOf('detail');
+    zPV_state.modalStack.splice(last, 1);
+  }
+  btn.disabled = false;
+  btn.textContent = '저장';
+  zPV_toast(zPV_state.editingId ? '수정되었습니다' : '추가되었습니다');
+}
+
+// ── DELETE ITEM ──────────────────────────────────
+async function zPV_deleteItem(id) {
+  const confirmed = await zPV_openConfirm(
+    '항목 삭제',
+    `"${zPV_state.items.find(i => i.id === id)?.site_name || ''}" 을(를) 삭제할까요?\n삭제 후 복구할 수 없습니다.`
+  );
+  if (!confirmed) return;
+
+  zPV_state.items = zPV_state.items.filter(i => i.id !== id);
+  zPV_state.filteredItems = zPV_state.items;
+
+  const localData = zPV_loadLocal().filter(i => i.id !== id);
+  zPV_saveLocal(localData);
+
+  if (zPV_state.isOnline) {
+    try {
+      await zPV_sb.from(zPV_TABLE).delete().eq('id', id);
+      zPV_setSyncStatus('synced');
+    } catch {
+      zPV_queueOp({ type: 'delete', id });
+    }
+  } else {
+    zPV_queueOp({ type: 'delete', id });
+  }
+
+  zPV_closeDetailModal();
+  zPV_updateUI();
+  zPV_toast('삭제되었습니다');
+}
+
+// ── COPY ─────────────────────────────────────────
+async function zPV_copy(text, btnEl) {
+  try {
+    await navigator.clipboard.writeText(text);
+    if (btnEl) {
+      btnEl.classList.add('copied');
+      setTimeout(() => btnEl.classList.remove('copied'), 1500);
+    }
+    zPV_toast('복사됨');
+  } catch { zPV_toast('복사 실패'); }
+}
+
+// ── SEARCH ───────────────────────────────────────
+function zPV_applySearch(q) {
+  if (!q.trim()) {
+    zPV_state.filteredItems = zPV_state.items;
+  } else {
+    const lq = q.toLowerCase();
+    zPV_state.filteredItems = zPV_state.items.filter(i =>
+      (i.site_name  || '').toLowerCase().includes(lq) ||
+      (i.login_id   || '').toLowerCase().includes(lq) ||
+      (i.site_url   || '').toLowerCase().includes(lq)
+    );
+  }
+  document.getElementById('vault_list_count').textContent = `${zPV_state.filteredItems.length}개`;
+  if (q.trim() && zPV_state.currentView === 'home') zPV_showList();
+  zPV_renderList();
+}
+
+// ── AUTH ──────────────────────────────────────────
+async function zPV_login() {
+  const email = document.getElementById('vault_email_input').value.trim();
+  const pw    = document.getElementById('vault_pw_input').value;
+  const errEl = document.getElementById('vault_auth_error');
+  const btn   = document.getElementById('vault_login_btn');
+
+  errEl.style.display = 'none';
+  if (!email || !pw) { errEl.textContent = '이메일과 비밀번호를 입력해주세요'; errEl.style.display = 'block'; return; }
+
+  btn.textContent = '인증 중...';
+  btn.disabled = true;
+
+  const { data, error } = await zPV_sb.auth.signInWithPassword({ email, password: pw });
+
+  if (error) {
+    errEl.textContent = '이메일 또는 비밀번호가 올바르지 않습니다';
+    errEl.style.display = 'block';
+    btn.textContent = '금고 열기';
+    btn.disabled = false;
+    return;
+  }
+
+  zPV_state.user     = data.user;
+  zPV_state.masterPw = pw;
+  await zPV_initApp();
+}
+
+async function zPV_logout() {
+  const confirmed = await zPV_openConfirm('로그아웃', '로그아웃 하시겠습니까?\n로컬 캐시도 함께 삭제됩니다.');
+  if (!confirmed) return;
+
+  await zPV_sb.auth.signOut();
+  // Clear all vault data from localStorage
+  localStorage.removeItem(zPV_LOCAL_KEY);
+  localStorage.removeItem(zPV_QUEUE_KEY);
+  localStorage.removeItem(zPV_SALT_KEY);
+  localStorage.removeItem(zPV_SESSION_KEY);
+
+  zPV_state = {
+    user: null, masterPw: '', items: [], filteredItems: [],
+    currentView: 'home', editingId: null, detailItem: null,
+    pwVisible: false, isOnline: navigator.onLine, syncing: false, modalStack: []
+  };
+
+  document.getElementById('vault_email_input').value = '';
+  document.getElementById('vault_pw_input').value    = '';
+  document.getElementById('vault_auth_error').style.display = 'none';
+  document.getElementById('vault_login_btn').textContent = '금고 열기';
+  document.getElementById('vault_login_btn').disabled = false;
+
+  document.getElementById('vault_auth_screen').style.display = 'flex';
+  document.getElementById('vault_app_screen').style.display  = 'none';
+  document.getElementById('vault_search_input').value = '';
+}
+
+async function zPV_initApp() {
+  document.getElementById('vault_auth_screen').style.display = 'none';
+  document.getElementById('vault_app_screen').style.display  = 'flex';
+
+  zPV_showHome();
+  zPV_setSyncStatus(zPV_state.isOnline ? 'synced' : 'offline');
+
+  // Load local first (instant), then fetch server
+  const cached = zPV_loadLocal();
+  if (cached.length) {
+    const dec = await Promise.all(cached.map(zPV_decryptItem));
+    zPV_state.items = zPV_sortItems(dec);
+    zPV_state.filteredItems = zPV_state.items;
+    zPV_updateUI();
+  }
+
+  await zPV_loadItems(true);
+  await zPV_flushQueue();
+
+  history.replaceState({ zPV: 'home' }, '');
+}
+
+// ── ONLINE / OFFLINE ─────────────────────────────
+window.addEventListener('online',  async () => {
+  zPV_state.isOnline = true;
+  if (zPV_state.user) { zPV_setSyncStatus('syncing'); await zPV_flushQueue(); await zPV_loadItems(true); }
+});
+window.addEventListener('offline', () => {
+  zPV_state.isOnline = false;
+  zPV_setSyncStatus('offline');
+});
+
+// ── TOKEN REFRESH ────────────────────────────────
+zPV_sb.auth.onAuthStateChange((event, session) => {
+  if (event === 'SIGNED_OUT') {
+    if (zPV_state.user) zPV_logout();
+    return;
+  }
+  if (session) zPV_state.user = session.user;
+});
+
+// ── STARTUP ──────────────────────────────────────
+async function zPV_startup() {
+  const { data: { session } } = await zPV_sb.auth.getSession();
+  if (session) {
+    // Auto-login: but we need masterPw for decryption.
+    // Since we can't recover pw from session, prompt for it.
+    // Store email for convenience.
+    const email = session.user.email;
+    document.getElementById('vault_email_input').value = email;
+    // Keep auth screen visible; user enters pw to decrypt
+    document.getElementById('vault_login_btn').textContent = '금고 열기';
+    // Hint that session exists
+    document.getElementById('vault_auth_error').style.display = 'none';
+  }
+  document.getElementById('vault_auth_screen').style.display = 'flex';
+}
+
+// ── EVENT LISTENERS ──────────────────────────────
+document.addEventListener('DOMContentLoaded', () => {
+
+  zPV_setupBackHandler();
+  zPV_startup();
+
+  // ─ Auth
+  document.getElementById('vault_login_btn').addEventListener('click', zPV_login);
+  document.getElementById('vault_pw_input').addEventListener('keydown', e => { if (e.key === 'Enter') zPV_login(); });
+  document.getElementById('vault_email_input').addEventListener('keydown', e => { if (e.key === 'Enter') document.getElementById('vault_pw_input').focus(); });
+  document.getElementById('vault_auth_eye').addEventListener('click', () => {
+    const inp = document.getElementById('vault_pw_input');
+    inp.type = inp.type === 'password' ? 'text' : 'password';
+  });
+  document.getElementById('vault_logout_btn').addEventListener('click', zPV_logout);
+
+  // ─ Nav
+  document.getElementById('vault_nav_safe_btn').addEventListener('click', () => {
+    if (zPV_state.currentView === 'home') zPV_showList();
+    else { zPV_showHome(); history.pushState({ zPV: 'home' }, ''); }
+  });
+
+  document.getElementById('vault_safe_icon_btn').addEventListener('click', zPV_showList);
+  document.getElementById('vault_list_back_btn').addEventListener('click', () => {
+    zPV_showHome();
+    history.pushState({ zPV: 'home' }, '');
+  });
+
+  // ─ Search
+  document.getElementById('vault_search_input').addEventListener('input', e => zPV_applySearch(e.target.value));
+
+  // ─ FAB
+  document.getElementById('vault_add_fab').addEventListener('click', () => zPV_openFormModal());
+
+  // ─ Detail modal
+  document.getElementById('vault_detail_close').addEventListener('click', () => {
+    zPV_closeDetailModal();
+    history.pushState({ zPV: zPV_state.currentView }, '');
+  });
+  document.getElementById('vault_detail_modal').addEventListener('click', e => {
+    if (e.target === document.getElementById('vault_detail_modal')) {
+      zPV_closeDetailModal();
+      history.pushState({ zPV: zPV_state.currentView }, '');
+    }
+  });
+
+  document.getElementById('vault_d_pw_eye').addEventListener('click', () => {
+    const el = document.getElementById('vault_d_password');
+    zPV_state.pwVisible = !zPV_state.pwVisible;
+    el.textContent = zPV_state.pwVisible ? (zPV_state.detailItem?.password || '') : '••••••••';
+    el.classList.toggle('vault_pw_dots', !zPV_state.pwVisible);
+  });
+
+  document.getElementById('vault_d_id_copy').addEventListener('click', e =>
+    zPV_copy(zPV_state.detailItem?.login_id || '', e.currentTarget));
+  document.getElementById('vault_d_pw_copy').addEventListener('click', e =>
+    zPV_copy(zPV_state.detailItem?.password || '', e.currentTarget));
+  document.getElementById('vault_d_url_copy').addEventListener('click', e =>
+    zPV_copy(zPV_state.detailItem?.site_url || '', e.currentTarget));
+
+  document.getElementById('vault_detail_edit_btn').addEventListener('click', () => {
+    zPV_openFormModal(zPV_state.detailItem);
+  });
+  document.getElementById('vault_detail_delete_btn').addEventListener('click', () => {
+    zPV_deleteItem(zPV_state.detailItem.id);
+  });
+
+  // ─ Form modal
+  document.getElementById('vault_form_close').addEventListener('click', () => {
+    zPV_closeFormModal();
+    history.pushState({ zPV: zPV_state.currentView }, '');
+  });
+  document.getElementById('vault_form_modal').addEventListener('click', e => {
+    if (e.target === document.getElementById('vault_form_modal')) {
+      zPV_closeFormModal();
+      history.pushState({ zPV: zPV_state.currentView }, '');
+    }
+  });
+
+  document.getElementById('vault_f_pw_eye').addEventListener('click', () => {
+    const inp = document.getElementById('vault_f_password');
+    inp.type = inp.type === 'password' ? 'text' : 'password';
+  });
+
+  document.getElementById('vault_f_pw_copy').addEventListener('click', e =>
+    zPV_copy(document.getElementById('vault_f_password').value, e.currentTarget));
+  document.getElementById('vault_f_id_copy').addEventListener('click', e =>
+    zPV_copy(document.getElementById('vault_f_login_id').value, e.currentTarget));
+
+  document.getElementById('vault_gen_pw_btn').addEventListener('click', () => {
+    const opts = document.getElementById('vault_gen_options');
+    opts.style.display = opts.style.display === 'none' ? 'block' : 'none';
+  });
+
+  document.getElementById('vault_do_gen_btn').addEventListener('click', () => {
+    const upper = document.getElementById('vault_opt_upper').checked;
+    const num   = document.getElementById('vault_opt_num').checked;
+    const sym   = document.getElementById('vault_opt_sym').checked;
+    const pw    = zPV_genPassword(upper, num, sym);
+    const inp   = document.getElementById('vault_f_password');
+    inp.value   = pw;
+    inp.type    = 'text';
+    document.getElementById('vault_gen_options').style.display = 'none';
+    zPV_toast('비밀번호가 생성되었습니다');
+  });
+
+  document.getElementById('vault_form_save_btn').addEventListener('click', zPV_saveItem);
+
+  // ─ Confirm modal
+  document.getElementById('vault_confirm_cancel').addEventListener('click', () => zPV_closeConfirm(false));
+  document.getElementById('vault_confirm_ok').addEventListener('click', () => zPV_closeConfirm(true));
+
+  // ─ Periodic token refresh safety net (every 10 min)
+  setInterval(async () => {
+    if (zPV_state.user && zPV_state.isOnline) {
+      await zPV_sb.auth.refreshSession();
+    }
+  }, 10 * 60 * 1000);
+
+  // ─ Periodic queue flush (every 30 sec when online)
+  setInterval(async () => {
+    if (zPV_state.user && zPV_state.isOnline) {
+      await zPV_flushQueue();
+    }
+  }, 30 * 1000);
+});
+</script>
+</body>
+</html>
