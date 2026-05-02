@@ -552,8 +552,17 @@ zPV_sb.auth.onAuthStateChange((event, session) => {
 // ── STARTUP ──────────────────────────────────────
 async function zPV_startup() {
   const { data: { session } } = await zPV_sb.auth.getSession();
-  if (session) document.getElementById('vault_email_input').value = session.user.email;
-  document.getElementById('vault_auth_screen').style.display = 'flex';
+  const authScreen = document.getElementById('vault_auth_screen');
+  const errEl      = document.getElementById('vault_auth_error');
+
+  if (session) {
+    // [FIX 1] 이메일 하드코딩 제거 — 직접 입력하게
+    // [FIX 2] 세션은 살아있으니 비밀번호만 다시 입력하면 됨을 안내
+    errEl.style.cssText = 'display:block;background:rgba(26,58,92,0.25);border-color:rgba(91,159,212,0.4);color:#a8d4f5;';
+    errEl.textContent   = '보안을 위해 비밀번호를 다시 입력해주세요.';
+  }
+
+  authScreen.style.display = 'flex';
 }
 
 // ── EVENT BINDING ────────────────────────────────
