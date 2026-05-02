@@ -270,13 +270,44 @@ function zPV_showList() {
 }
 
 // ── BACK HANDLER ─────────────────────────────────
+// 히스토리 전략: 모달이 하나라도 열려있으면 pushState 한 번만.
+// 뒤로가기 = 스택 top 하나 닫기. 스택이 비면 replaceState로 현재 뷰 유지.
+function zPV_pushModalHistory() {
+  // 모달 스택이 비었을 때만 pushState (중복 방지)
+  if (S.modalStack.length === 0) {
+    history.pushState({ zPV: 'modal' }, '');
+  }
+}
+
+function zPV_replaceCurrentState() {
+  history.replaceState({ zPV: S.currentView }, '');
+}
+
 function zPV_setupBack() {
   window.addEventListener('popstate', () => {
     const top = S.modalStack[S.modalStack.length - 1];
-    if (top === 'confirm') { zPV_closeConfirm(false); history.pushState({ zPV: 'c' }, ''); return; }
-    if (top === 'form')    { zPV_closeForm();   return; }
-    if (top === 'detail')  { zPV_closeDetail(); return; }
-    if (S.currentView === 'list') { zPV_showHome(); history.pushState({ zPV: 'home' }, ''); return; }
+    if (top === 'confirm') {
+      zPV_closeConfirm(false);
+      // 아직 스택에 다른 모달 남아있으면 히스토리 엔트리 유지
+      if (S.modalStack.length > 0) history.pushState({ zPV: 'modal' }, '');
+      return;
+    }
+    if (top === 'form') {
+      zPV_closeForm();
+      if (S.modalStack.length > 0) history.pushState({ zPV: 'modal' }, '');
+      return;
+    }
+    if (top === 'detail') {
+      zPV_closeDetail();
+      if (S.modalStack.length > 0) history.pushState({ zPV: 'modal' }, '');
+      return;
+    }
+    // 모달 없음 → 뷰 전환
+    if (S.currentView === 'list') {
+      zPV_showHome();
+      history.replaceState({ zPV: 'home' }, '');
+      return;
+    }
   });
 }
 
@@ -300,14 +331,15 @@ function zPV_openDetail(it) {
     urlFld.style.display = 'block';
   } else { urlFld.style.display = 'none'; }
   document.getElementById('vault_d_memo_field').style.display = it.memo ? 'block' : 'none';
-  zPV_open('vault_detail_modal');
+  zPV_pushModalHistory();
   S.modalStack.push('detail');
-  history.pushState({ zPV: 'detail' }, '');
+  zPV_open('vault_detail_modal');
 }
 
 function zPV_closeDetail() {
   zPV_close('vault_detail_modal');
   S.modalStack = S.modalStack.filter(m => m !== 'detail');
+  if (S.modalStack.length === 0) zPV_replaceCurrentState();
 }
 
 function zPV_openForm(it = null) {
@@ -320,15 +352,16 @@ function zPV_openForm(it = null) {
   document.getElementById('vault_f_password').type    = 'password';
   document.getElementById('vault_f_memo').value       = it ? (it.memo      || '') : '';
   document.getElementById('vault_gen_options').style.display = 'none';
-  zPV_open('vault_form_modal');
+  zPV_pushModalHistory();
   S.modalStack.push('form');
-  history.pushState({ zPV: 'form' }, '');
+  zPV_open('vault_form_modal');
   setTimeout(() => document.getElementById('vault_f_site_name').focus(), 350);
 }
 
 function zPV_closeForm() {
   zPV_close('vault_form_modal');
   S.modalStack = S.modalStack.filter(m => m !== 'form');
+  if (S.modalStack.length === 0) zPV_replaceCurrentState();
 }
 
 // ── CONFIRM ──────────────────────────────────────
@@ -343,14 +376,15 @@ function zPV_openConfirm(title, msg, okLabel = '확인', isDanger = false) {
     ok.textContent = okLabel;
     ok.className   = 'vault_confirm_ok' + (isDanger ? ' is-danger' : '');
     document.getElementById('vault_confirm_overlay').classList.add('open');
+    zPV_pushModalHistory();
     S.modalStack.push('confirm');
-    history.pushState({ zPV: 'confirm' }, '');
   });
 }
 
 function zPV_closeConfirm(result = false) {
   document.getElementById('vault_confirm_overlay').classList.remove('open');
   S.modalStack = S.modalStack.filter(m => m !== 'confirm');
+  if (S.modalStack.length === 0) zPV_replaceCurrentState();
   if (zPV_confirmCb) { zPV_confirmCb(result); zPV_confirmCb = null; }
 }
 
@@ -571,6 +605,7 @@ async function zPV_logout() {
   S.logoutInProgress = true;
   document.getElementById('vault_confirm_overlay').classList.remove('open');
   S.modalStack = S.modalStack.filter(m => m !== 'confirm');
+  zPV_replaceCurrentState();
 
   await zPV_sb.auth.signOut();
 
@@ -673,11 +708,11 @@ document.addEventListener('DOMContentLoaded', () => {
   // Nav
   document.getElementById('vault_nav_safe_btn').addEventListener('click', () => {
     if (S.currentView === 'home') zPV_showList();
-    else { zPV_showHome(); history.pushState({ zPV: 'home' }, ''); }
+    else { zPV_showHome(); history.replaceState({ zPV: 'home' }, ''); }
   });
   document.getElementById('vault_safe_icon_btn').addEventListener('click', zPV_showList);
   document.getElementById('vault_list_back_btn').addEventListener('click', () => {
-    zPV_showHome(); history.pushState({ zPV: 'home' }, '');
+    zPV_showHome(); history.replaceState({ zPV: 'home' }, '');
   });
 
   // Search
@@ -688,11 +723,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Detail modal
   document.getElementById('vault_detail_close').addEventListener('click', () => {
-    zPV_closeDetail(); history.pushState({ zPV: S.currentView }, '');
+    zPV_closeDetail();
   });
   document.getElementById('vault_detail_modal').addEventListener('click', e => {
     if (e.target === document.getElementById('vault_detail_modal')) {
-      zPV_closeDetail(); history.pushState({ zPV: S.currentView }, '');
+      zPV_closeDetail();
     }
   });
   document.getElementById('vault_d_pw_eye').addEventListener('click', () => {
@@ -709,11 +744,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Form modal
   document.getElementById('vault_form_close').addEventListener('click', () => {
-    zPV_closeForm(); history.pushState({ zPV: S.currentView }, '');
+    zPV_closeForm();
   });
   document.getElementById('vault_form_modal').addEventListener('click', e => {
     if (e.target === document.getElementById('vault_form_modal')) {
-      zPV_closeForm(); history.pushState({ zPV: S.currentView }, '');
+      zPV_closeForm();
     }
   });
   document.getElementById('vault_f_pw_eye').addEventListener('click', () => {
