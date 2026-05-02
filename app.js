@@ -270,13 +270,10 @@ function zPV_showList() {
 }
 
 // ── BACK HANDLER ─────────────────────────────────
-// 히스토리 전략: 모달이 하나라도 열려있으면 pushState 한 번만.
-// 뒤로가기 = 스택 top 하나 닫기. 스택이 비면 replaceState로 현재 뷰 유지.
+// 전략: 모달 열릴 때마다 pushState → 뒤로가기 1번 = 모달 1개 닫힘
+// 모달/뷰가 없어서 더 갈 곳 없으면 다시 pushState로 사이트 이탈 차단
 function zPV_pushModalHistory() {
-  // 모달 스택이 비었을 때만 pushState (중복 방지)
-  if (S.modalStack.length === 0) {
-    history.pushState({ zPV: 'modal' }, '');
-  }
+  history.pushState({ zPV: 'modal' }, '');
 }
 
 function zPV_replaceCurrentState() {
@@ -286,28 +283,17 @@ function zPV_replaceCurrentState() {
 function zPV_setupBack() {
   window.addEventListener('popstate', () => {
     const top = S.modalStack[S.modalStack.length - 1];
-    if (top === 'confirm') {
-      zPV_closeConfirm(false);
-      // 아직 스택에 다른 모달 남아있으면 히스토리 엔트리 유지
-      if (S.modalStack.length > 0) history.pushState({ zPV: 'modal' }, '');
-      return;
-    }
-    if (top === 'form') {
-      zPV_closeForm();
-      if (S.modalStack.length > 0) history.pushState({ zPV: 'modal' }, '');
-      return;
-    }
-    if (top === 'detail') {
-      zPV_closeDetail();
-      if (S.modalStack.length > 0) history.pushState({ zPV: 'modal' }, '');
-      return;
-    }
-    // 모달 없음 → 뷰 전환
+    if (top === 'confirm') { zPV_closeConfirm(false); return; }
+    if (top === 'form')    { zPV_closeForm();          return; }
+    if (top === 'detail')  { zPV_closeDetail();        return; }
+    // 모달 없음
     if (S.currentView === 'list') {
       zPV_showHome();
       history.replaceState({ zPV: 'home' }, '');
       return;
     }
+    // home에서 더 뒤로가면 사이트 이탈 → 막기
+    history.pushState({ zPV: 'home' }, '');
   });
 }
 
