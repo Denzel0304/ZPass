@@ -442,6 +442,9 @@ async function zPV_deleteItem(id) {
   zPV_toast('삭제되었습니다');
 }
 
+// ── MASTER PW STORAGE KEY ────────────────────────
+const zPV_LS_PW = 'zPV_mpw_v1';
+
 // ── LOGIN ────────────────────────────────────────
 async function zPV_login() {
   const email = document.getElementById('vault_email_input').value.trim();
@@ -465,6 +468,9 @@ async function zPV_login() {
   S.user     = data.user;
   S.masterPw = pw;
 
+  // 새로고침 복원용 (탭 닫으면 자동 삭제)
+  localStorage.setItem(zPV_LS_PW, pw);
+
   // salt 로드 (멀티기기 핵심)
   btn.textContent = '금고 여는 중...';
   try {
@@ -474,6 +480,7 @@ async function zPV_login() {
     errEl.style.display = 'block';
     btn.textContent = '금고 열기'; btn.disabled = false;
     await zPV_sb.auth.signOut();
+    localStorage.removeItem(zPV_LS_PW);
     return;
   }
 
@@ -494,6 +501,7 @@ async function zPV_logout() {
 
   localStorage.removeItem(zPV_LOCAL_KEY);
   localStorage.removeItem(zPV_QUEUE_KEY);
+  localStorage.removeItem(zPV_LS_PW);
 
   S = {
     user: null, masterPw: '', salt: null,
@@ -552,17 +560,23 @@ zPV_sb.auth.onAuthStateChange((event, session) => {
 // ── STARTUP ──────────────────────────────────────
 async function zPV_startup() {
   const { data: { session } } = await zPV_sb.auth.getSession();
-  const authScreen = document.getElementById('vault_auth_screen');
-  const errEl      = document.getElementById('vault_auth_error');
+  const savedPw = localStorage.getItem(zPV_LS_PW);
 
-  if (session) {
-    // [FIX 1] 이메일 하드코딩 제거 — 직접 입력하게
-    // [FIX 2] 세션은 살아있으니 비밀번호만 다시 입력하면 됨을 안내
-    errEl.style.cssText = 'display:block;background:rgba(26,58,92,0.25);border-color:rgba(91,159,212,0.4);color:#a8d4f5;';
-    errEl.textContent   = '보안을 위해 비밀번호를 다시 입력해주세요.';
+  // 세션 + 비밀번호 둘 다 있으면 자동으로 금고 열기 (새로고침 복원)
+  if (session && savedPw) {
+    S.user     = session.user;
+    S.masterPw = savedPw;
+    try {
+      await zPV_loadOrCreateSalt();
+      await zPV_initApp();
+      return;
+    } catch (e) {
+      // 복원 실패 시 로그인 화면으로
+      localStorage.removeItem(zPV_LS_PW);
+    }
   }
 
-  authScreen.style.display = 'flex';
+  document.getElementById('vault_auth_screen').style.display = 'flex';
 }
 
 // ── EVENT BINDING ────────────────────────────────
