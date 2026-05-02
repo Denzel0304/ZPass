@@ -443,7 +443,61 @@ async function zPV_deleteItem(id) {
 }
 
 // ── MASTER PW STORAGE KEY ────────────────────────
-const zPV_LS_PW = 'zPV_mpw_v1';
+const zPV_LS_PW       = 'zPV_mpw_v1';
+const zPV_LS_FAILS    = 'zPV_login_fails_v1';   // 실패 횟수
+const zPV_LS_LOCKTIME = 'zPV_login_lock_v1';    // 잠금 시작 시각
+const zPV_MAX_FAILS   = 5;
+const zPV_LOCK_MS     = 10 * 60 * 1000;         // 10분
+
+// ── BRUTE-FORCE GUARD ─────────────────────────────
+function zPV_getLockState() {
+  const fails    = parseInt(localStorage.getItem(zPV_LS_FAILS)  || '0', 10);
+  const lockTime = parseInt(localStorage.getItem(zPV_LS_LOCKTIME) || '0', 10);
+  const now      = Date.now();
+  const locked   = fails >= zPV_MAX_FAILS && (now - lockTime) < zPV_LOCK_MS;
+  const remaining = locked ? Math.ceil((zPV_LOCK_MS - (now - lockTime)) / 1000) : 0;
+  return { fails, locked, remaining };
+}
+
+function zPV_recordFail() {
+  const { fails } = zPV_getLockState();
+  const newFails = fails + 1;
+  localStorage.setItem(zPV_LS_FAILS, newFails);
+  if (newFails >= zPV_MAX_FAILS) {
+    localStorage.setItem(zPV_LS_LOCKTIME, Date.now());
+  }
+}
+
+function zPV_clearFails() {
+  localStorage.removeItem(zPV_LS_FAILS);
+  localStorage.removeItem(zPV_LS_LOCKTIME);
+}
+
+function zPV_fmtRemaining(sec) {
+  const m = Math.floor(sec / 60), s = sec % 60;
+  return m > 0 ? `${m}분 ${s}초` : `${s}초`;
+}
+
+// 잠금 중이면 카운트다운 표시
+let zPV_lockTimer = null;
+function zPV_startLockCountdown(errEl, btn) {
+  if (zPV_lockTimer) clearInterval(zPV_lockTimer);
+  zPV_lockTimer = setInterval(() => {
+    const { locked, remaining } = zPV_getLockState();
+    if (locked) {
+      errEl.textContent = `비밀번호 5회 오류. ${zPV_fmtRemaining(remaining)} 후 다시 시도하세요.`;
+      errEl.style.display = 'block';
+      btn.disabled = true;
+      btn.textContent = `잠금 (${zPV_fmtRemaining(remaining)})`;
+    } else {
+      clearInterval(zPV_lockTimer);
+      zPV_lockTimer = null;
+      errEl.style.display = 'none';
+      btn.disabled = false;
+      btn.textContent = '금고 열기';
+    }
+  }, 1000);
+}
 
 // ── LOGIN ────────────────────────────────────────
 async function zPV_login() {
@@ -455,20 +509,41 @@ async function zPV_login() {
   errEl.style.display = 'none';
   if (!email || !pw) { errEl.textContent = '이메일과 비밀번호를 입력해주세요'; errEl.style.display = 'block'; return; }
 
+  // 잠금 상태 확인
+  const { locked, remaining } = zPV_getLockState();
+  if (locked) {
+    errEl.textContent = `비밀번호 5회 오류. ${zPV_fmtRemaining(remaining)} 후 다시 시도하세요.`;
+    errEl.style.display = 'block';
+    zPV_startLockCountdown(errEl, btn);
+    return;
+  }
+
   btn.textContent = '인증 중...'; btn.disabled = true;
 
   const { data, error } = await zPV_sb.auth.signInWithPassword({ email, password: pw });
   if (error) {
-    errEl.textContent = '이메일 또는 비밀번호가 올바르지 않습니다';
+    zPV_recordFail();
+    const state = zPV_getLockState();
+    if (state.locked) {
+      errEl.textContent = `비밀번호 5회 오류. ${zPV_fmtRemaining(state.remaining)} 후 다시 시도하세요.`;
+      zPV_startLockCountdown(errEl, btn);
+    } else {
+      const left = zPV_MAX_FAILS - state.fails;
+      errEl.textContent = `이메일 또는 비밀번호가 올바르지 않습니다. (${left}회 남음)`;
+      btn.disabled = false;
+      btn.textContent = '금고 열기';
+    }
     errEl.style.display = 'block';
-    btn.textContent = '금고 열기'; btn.disabled = false;
     return;
   }
+
+  // 로그인 성공 → 실패 카운트 초기화
+  zPV_clearFails();
 
   S.user     = data.user;
   S.masterPw = pw;
 
-  // 새로고침 복원용 (탭 닫으면 자동 삭제)
+  // 새로고침 복원용
   localStorage.setItem(zPV_LS_PW, pw);
 
   // salt 로드 (멀티기기 핵심)
@@ -502,6 +577,7 @@ async function zPV_logout() {
   localStorage.removeItem(zPV_LOCAL_KEY);
   localStorage.removeItem(zPV_QUEUE_KEY);
   localStorage.removeItem(zPV_LS_PW);
+  zPV_clearFails();
 
   S = {
     user: null, masterPw: '', salt: null,
