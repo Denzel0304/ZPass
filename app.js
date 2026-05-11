@@ -33,7 +33,8 @@ let S = {
   pwVisible: false,
   isOnline: navigator.onLine,
   modalStack: [],
-  logoutInProgress: false
+  logoutInProgress: false,
+  _skipPopstate: false
 };
 
 // ── CRYPTO ───────────────────────────────────────
@@ -282,6 +283,7 @@ function zPV_replaceCurrentState() {
 
 function zPV_setupBack() {
   window.addEventListener('popstate', () => {
+    if (S._skipPopstate) return;  // saveItem에서 go(-1) 후 popstate 무시
     const top = S.modalStack[S.modalStack.length - 1];
     if (top === 'confirm') { zPV_closeConfirm(false); return; }
     if (top === 'form')    { zPV_closeForm();          return; }
@@ -401,6 +403,9 @@ async function zPV_saveItem() {
   const btn = document.getElementById('vault_form_save_btn');
   btn.disabled = true; btn.textContent = '저장 중...';
 
+  // 수정 여부를 저장 전에 기억 (closeForm 후엔 editingId가 남아있어도 로직 꼬임 방지)
+  const wasEditing = !!S.editingId;
+
   const raw = {
     id:         S.editingId || crypto.randomUUID(),
     user_id:    S.user.id,
@@ -436,9 +441,30 @@ async function zPV_saveItem() {
   } else { zPV_queueOp({ type: 'upsert', data: enc }); }
 
   zPV_updateUI();
-  zPV_closeForm();
+
+  if (wasEditing) {
+    // 수정 모드: Form(B)과 Detail(A) 둘 다 닫기
+    // history에 detail + form 2개의 entry가 쌓여 있으므로
+    // 두 모달을 한 번에 제거하고 history를 replaceState로 정리
+    zPV_close('vault_form_modal');
+    zPV_close('vault_detail_modal');
+    S.modalStack = S.modalStack.filter(m => m !== 'form' && m !== 'detail');
+    // history go(-1)은 popstate를 유발하므로, 대신 replaceState × 2분을 한꺼번에 처리
+    // 현재 history에 form entry가 top이고 그 아래 detail entry가 있음
+    // go(-1) 후 replace가 가장 깔끔하지만 popstate 가드 필요
+    S._skipPopstate = true;
+    history.go(-1);
+    setTimeout(() => {
+      history.replaceState({ zPV: S.currentView }, '');
+      S._skipPopstate = false;
+    }, 50);
+  } else {
+    // 신규 추가: Form만 닫기
+    zPV_closeForm();
+  }
+
   btn.disabled = false; btn.textContent = '저장';
-  zPV_toast(S.editingId ? '수정되었습니다' : '추가되었습니다');
+  zPV_toast(wasEditing ? '수정되었습니다' : '추가되었습니다');
 }
 
 // ── DELETE ITEM ──────────────────────────────────
@@ -606,7 +632,7 @@ async function zPV_logout() {
     items: [], filteredItems: [],
     currentView: 'home', editingId: null, detailItem: null,
     pwVisible: false, isOnline: navigator.onLine,
-    modalStack: [], logoutInProgress: false
+    modalStack: [], logoutInProgress: false, _skipPopstate: false
   };
 
   document.getElementById('vault_email_input').value    = '';

@@ -249,7 +249,11 @@
   .vault_modal_overlay {
     position:fixed; inset:0;
     background:rgba(10,20,40,0.55); backdrop-filter:blur(4px);
-    z-index:200; display:flex; align-items:flex-end; justify-content:center;
+    z-index:200;
+    display:flex; flex-direction:column;
+    justify-content:flex-end; align-items:center;
+    /* 상단 여백: 시트가 절대로 viewport 위로 넘어가지 못하게 막음 */
+    padding-top:max(env(safe-area-inset-top, 0px) + 12px, 48px);
     opacity:0; pointer-events:none; transition:opacity 0.25s;
   }
   .vault_modal_overlay.open { opacity:1; pointer-events:all; }
@@ -257,8 +261,8 @@
   .vault_modal_sheet {
     background:var(--surface-card); border-radius:22px 22px 0 0;
     width:100%; max-width:480px;
-    /* 위쪽 잘림 방지: 화면 상단에서 최소 env(safe-area) + 12px 여백 확보 */
-    max-height:calc(100vh - env(safe-area-inset-top, 0px) - 12px);
+    /* flex:1이면 남은 공간을 다 채우되 overflow는 내부 scroll로 처리 */
+    flex-shrink:1; min-height:0;
     display:flex; flex-direction:column;
     overflow:hidden;
     transform:translateY(100%);
