@@ -256,7 +256,9 @@
 
   .vault_modal_sheet {
     background:var(--surface-card); border-radius:22px 22px 0 0;
-    width:100%; max-width:480px; max-height:92vh;
+    width:100%; max-width:480px;
+    /* 위쪽 잘림 방지: 화면 상단에서 최소 env(safe-area) + 12px 여백 확보 */
+    max-height:calc(100vh - env(safe-area-inset-top, 0px) - 12px);
     display:flex; flex-direction:column;
     overflow:hidden;
     transform:translateY(100%);
@@ -572,7 +574,7 @@
         <div class="vault_detail_value_wrap">
           <div class="vault_detail_value" id="vault_d_login_id"></div>
           <button class="vault_icon_btn" id="vault_d_id_copy">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
           </button>
         </div>
       </div>
@@ -620,9 +622,9 @@
       <div class="vault_form_group">
         <label class="vault_form_label">아이디 *</label>
         <div style="position:relative;">
-          <input class="vault_form_input" type="text" id="vault_f_login_id" placeholder="아이디 또는 이메일" style="padding-right:44px;">
+          <input class="vault_form_input" type="text" id="vault_f_login_id" placeholder="아이디 또는 이메일" style="padding-right:48px;">
           <button class="vault_form_copy" id="vault_f_id_copy" style="right:10px;">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
           </button>
         </div>
       </div>
