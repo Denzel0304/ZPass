@@ -303,6 +303,7 @@ const zPV_close = id => document.getElementById(id).classList.remove('open');
 
 function zPV_openDetail(it) {
   S.detailItem = it; S.pwVisible = false;
+  document.getElementById('vault_d_pw_eye').classList.remove('eye-active');
   document.getElementById('vault_detail_title').textContent = it.site_name || '상세 정보';
   document.getElementById('vault_d_site_name').textContent  = it.site_name || '-';
   document.getElementById('vault_d_login_id').textContent   = it.login_id  || '-';
@@ -718,9 +719,11 @@ document.addEventListener('DOMContentLoaded', () => {
   });
   document.getElementById('vault_d_pw_eye').addEventListener('click', () => {
     const el = document.getElementById('vault_d_password');
+    const eyeBtn = document.getElementById('vault_d_pw_eye');
     S.pwVisible = !S.pwVisible;
     el.textContent = S.pwVisible ? (S.detailItem?.password || '') : '••••••••';
     el.classList.toggle('vault_pw_dots', !S.pwVisible);
+    eyeBtn.classList.toggle('eye-active', S.pwVisible);
   });
   document.getElementById('vault_d_id_copy').addEventListener('click',  e => zPV_copy(S.detailItem?.login_id  || '', e.currentTarget));
   document.getElementById('vault_d_pw_copy').addEventListener('click',  e => zPV_copy(S.detailItem?.password  || '', e.currentTarget));
@@ -739,7 +742,9 @@ document.addEventListener('DOMContentLoaded', () => {
   });
   document.getElementById('vault_f_pw_eye').addEventListener('click', () => {
     const i = document.getElementById('vault_f_password');
+    const eyeBtn = document.getElementById('vault_f_pw_eye');
     i.type = i.type === 'password' ? 'text' : 'password';
+    eyeBtn.classList.toggle('active', i.type === 'text');
   });
   document.getElementById('vault_f_pw_copy').addEventListener('click', e => zPV_copy(document.getElementById('vault_f_password').value, e.currentTarget));
   document.getElementById('vault_f_id_copy').addEventListener('click', e => zPV_copy(document.getElementById('vault_f_login_id').value, e.currentTarget));

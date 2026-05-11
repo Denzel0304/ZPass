@@ -3,10 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-
-<link rel="icon" href="favicon.png">
-  
-<title>Z Pass</title>
+<title>ZPassVault</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
   :root {
@@ -237,7 +234,9 @@
   .vault_item_arrow { color:var(--text-muted); flex-shrink:0; }
 
   .vault_add_fab {
-    position:fixed; bottom:28px; right:20px;
+    position:fixed; bottom:28px;
+    /* 컨테이너(max-width:480px) 우측 끝과 일치: 로그아웃 버튼과 같은 수직선 */
+    right:max(20px, calc(50% - 480px/2 + 20px));
     width:56px; height:56px; background:var(--navy);
     border:none; border-radius:50%; color:#fff; cursor:pointer;
     box-shadow:0 4px 16px rgba(26,58,92,0.45);
@@ -258,20 +257,31 @@
   .vault_modal_sheet {
     background:var(--surface-card); border-radius:22px 22px 0 0;
     width:100%; max-width:480px; max-height:92vh;
-    overflow-y:auto; overscroll-behavior:contain;
+    display:flex; flex-direction:column;
+    overflow:hidden;
     transform:translateY(100%);
     transition:transform 0.3s cubic-bezier(0.32,0.72,0,1);
     padding-bottom:env(safe-area-inset-bottom,20px);
   }
   .vault_modal_overlay.open .vault_modal_sheet { transform:translateY(0); }
 
+  .vault_modal_body {
+    padding:16px 20px 24px;
+    overflow-y:auto;
+    overscroll-behavior:contain;
+    -webkit-overflow-scrolling:touch;
+    flex:1;
+  }
+
   .vault_modal_handle {
     width:40px; height:4px; background:var(--border-strong);
     border-radius:2px; margin:12px auto 0;
   }
+  .vault_modal_handle { flex-shrink:0; }
   .vault_modal_header {
     padding:16px 20px 0; display:flex;
     align-items:center; justify-content:space-between;
+    flex-shrink:0;
   }
   .vault_modal_title { font-size:18px; font-weight:700; color:var(--navy); }
 
@@ -281,7 +291,6 @@
     cursor:pointer; color:var(--text-secondary); font-size:18px;
   }
   .vault_modal_close:active { background:var(--border); }
-  .vault_modal_body { padding:16px 20px 24px; }
 
   /* ── FORM ── */
   .vault_form_group { margin-bottom:14px; }
@@ -300,18 +309,21 @@
   .vault_form_input:focus { border-color:var(--accent); }
 
   .vault_form_input_wrap { position:relative; }
-  .vault_form_input_wrap .vault_form_input { padding-right:80px; }
+  .vault_form_input_wrap .vault_form_input { padding-right:90px; }
 
+  /* 눈 버튼: 좌측 (right값 크게 = 더 왼쪽) */
   .vault_form_eye {
-    position:absolute; right:12px; top:50%; transform:translateY(-50%);
+    position:absolute; right:48px; top:50%; transform:translateY(-50%);
     background:none; border:none; color:var(--text-muted);
-    cursor:pointer; padding:4px; display:flex; align-items:center;
+    cursor:pointer; padding:6px; display:flex; align-items:center;
   }
+  .vault_form_eye.active { color:var(--accent); }
 
+  /* 복사 버튼: 우측 */
   .vault_form_copy {
-    position:absolute; right:44px; top:50%; transform:translateY(-50%);
+    position:absolute; right:10px; top:50%; transform:translateY(-50%);
     background:none; border:none; color:var(--text-muted);
-    cursor:pointer; padding:4px; display:flex; align-items:center;
+    cursor:pointer; padding:6px; display:flex; align-items:center;
     transition:color 0.15s;
   }
   .vault_form_copy.copied { color:var(--success); }
@@ -340,11 +352,12 @@
 
   .vault_icon_btn {
     background:none; border:none; color:var(--text-muted);
-    cursor:pointer; padding:4px; display:flex; align-items:center;
+    cursor:pointer; padding:6px; display:flex; align-items:center;
     border-radius:6px; transition:background 0.15s,color 0.15s; flex-shrink:0;
   }
   .vault_icon_btn:active { background:var(--border); color:var(--navy); }
   .vault_icon_btn.copied { color:var(--success); }
+  .vault_icon_btn.eye-active { color:var(--accent); }
 
   .vault_detail_actions { display:flex; gap:10px; margin-top:20px; }
 
@@ -568,10 +581,10 @@
         <div class="vault_detail_value_wrap">
           <div class="vault_detail_value vault_pw_dots" id="vault_d_password">••••••••</div>
           <button class="vault_icon_btn" id="vault_d_pw_eye">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
           </button>
           <button class="vault_icon_btn" id="vault_d_pw_copy">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
           </button>
         </div>
       </div>
@@ -617,11 +630,11 @@
         <label class="vault_form_label">비밀번호 *</label>
         <div class="vault_form_input_wrap">
           <input class="vault_form_input" type="password" id="vault_f_password" placeholder="비밀번호">
-          <button class="vault_form_copy" id="vault_f_pw_copy">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
-          </button>
           <button class="vault_form_eye" id="vault_f_pw_eye">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+          </button>
+          <button class="vault_form_copy" id="vault_f_pw_copy">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
           </button>
         </div>
         <button class="vault_gen_btn" id="vault_gen_pw_btn">
